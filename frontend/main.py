@@ -11,7 +11,7 @@ import os
 st.set_page_config(page_title="Legal Doc Assistant", page_icon="⚖️", layout="wide")
 
 # API Configuration
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
 UPLOAD_API_URL = f"{BACKEND_URL}/upload/pdf"  # Single file
 UPLOAD_MULTIPLE_API_URL = f"{BACKEND_URL}/upload/pdfs"  # Multiple files
 UPLOAD_MULTIPLE_IMAGES_API_URL = f"{BACKEND_URL}/upload/multiple/images"  # Multiple images

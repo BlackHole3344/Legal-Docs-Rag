@@ -1,34 +1,58 @@
-# docker-compose.yml - For separate frontend/backend projects
+version: '3.4' # <-- ADD THIS LINE AT THE VERY TOP
+
 services:
   # FastAPI Backend
+  
   backend:
     build: 
-      context: ./backend          # Points to your backend directory
+      context: ./backend
       dockerfile: Dockerfile
     container_name: legal-backend
     ports:
-      - "3000:8080"
+      - "3000:3000"
+
+    secrets: # <-- ADD THIS to the backend service
+      - gcp_key  
+    env_file:
+      - ./.env 
     environment:
+      # CORRECTED: Must be the path INSIDE the container
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp_key 
       - REDIS_URL=redis://redis:6379
-    depends_on:
-      - redis
     volumes:
+      # ADDED: This line mounts your key file into the container
+      - ./backend/key.json:/app/key.json:ro
       - ./uploads:/app/uploads
     restart: unless-stopped
+    networks:
+      - legal-net
+    healthcheck:
+      # CORRECTED: The healthcheck must target the correct internal port (3000)
+      test: ["CMD", "curl", "-f", "http://localhost:3000/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Streamlit Frontend  
   frontend:
     build:
-      context: ./frontend         # Points to your frontend directory  
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: legal-frontend
     ports:
       - "8501:8501"
+    env_file :
+      - ./.env   
     environment:
-      - BACKEND_URL=http://backend:8080  # This is the key change
+      
+      - BACKEND_URL=http://backend:3000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - legal-net
 
   # Redis Cache
   redis:
@@ -39,6 +63,16 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    networks:
+      - legal-net
 
 volumes:
   redis_data:
+
+networks: 
+  legal-net:
+    driver: bridge
+
+secrets:
+  gcp_key : 
+    file: ./backend/key.json    
