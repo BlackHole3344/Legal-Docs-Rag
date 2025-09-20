@@ -36,34 +36,9 @@ class RetrieverAndChat:
         self.qdrant_pool = QdrantClientPool()
         self._gemini_client = None
         self.embedding_client = EmbeddingClient()
-        self.gemini_generation = None
+        self.gemini_generation = GeminiQADataAugmentor() 
         
         logger.info("RetrieverAndChat initialized successfully")
-    
-    async def get_generation_client(self):
-        """Initialize Gemini client and augmentor"""
-        try:
-            if self._gemini_client is None:
-                logger.info("Initializing Gemini client")
-                
-                self._gemini_client = genai.Client(
-                    vertexai=True,
-                    project=PROJECT_ID,
-                    location=LOCATION,
-                    http_options=HttpOptions(api_version="v1")
-                )
-                
-                logger.info("Gemini client initialized successfully")
-                
-                # Initialize the augmentor
-                self.gemini_generation = GeminiQADataAugmentor(self._gemini_client)
-                logger.info("Gemini augmentor initialized successfully")
-            
-            return self.gemini_generation
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            raise
     
     def test_connection(self):
         """Test Qdrant connection"""
@@ -106,17 +81,18 @@ class RetrieverAndChat:
                 else:
                     actual_points = points
                     logger.info(f"Retrieved {len(actual_points)} points from Qdrant")
-            
-            # Step 3: Initialize Gemini if needed
-            if not self.gemini_generation:
-                logger.info("Step 3: Initializing Gemini generation client")
-                await self.get_generation_client()
+
+            ##forbidden
+            # # Step 3: Initialize Gemini if needed
+            # if not self.gemini_generation:
+            #     logger.info("Step 3: Initializing Gemini generation client")
+            #     await self.get_generation_client()
             
             # Step 4: Generate response
             logger.info("Step 4: Generating comprehensive response")
             generated_response , citation_data = await self.gemini_generation.generate_answer(
                 user_query=query, 
-                points=actual_points
+                points=actual_points 
             )
             
             logger.info("Response generated successfully")
@@ -140,15 +116,18 @@ class RetrieverAndChat:
                 "response": "Sorry, I encountered an error while processing your request."
             }
     
-    async def process_input(self, prompt: str, collection_name: str = "default_collection", top_k: int = 5):
+    async def process_input(self, query : str, collection_name: str = "default_collection", top_k: int = 5):
         """Process user input and return response"""
-        logger.info(f"Processing input: '{prompt[:50]}...'")
+        logger.info(f"Processing input: '{query[:50]}...'")
         
         try:
             self.test_connection()
             
+            
+            
+            
             result = await self.process_qdrant_retrieval(
-                query=prompt,
+                query=query,
                 collection_name=collection_name,
                 top_k=top_k
             )
@@ -170,11 +149,8 @@ class RetrieverAndChat:
         logger.info(f"Processing image chat for common_id: {common_id}")
         
         try:
-            # Initialize Gemini if needed
-            if not self.gemini_generation:
-                logger.info("Initializing Gemini generation client")
-                await self.get_generation_client()
-            
+   
+
             # Initialize image processor for cache access
             from ..image_processor import ImageProcessor
             image_processor = ImageProcessor()

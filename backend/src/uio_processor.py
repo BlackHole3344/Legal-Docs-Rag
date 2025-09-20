@@ -6,12 +6,14 @@ from dotenv import load_dotenv
 import os 
 import logging 
 from typing import Dict , List , Any  , Optional 
-from google import genai
-from google.genai.types import HttpOptions
-from google.auth import load_credentials_from_file 
-from google.genai.types import HttpOptions, Content, Part, GenerateContentConfig, ThinkingConfig
-from google.auth import default 
+# from google import genai
+# from google.genai.types import HttpOptions
+# from google.auth import load_credentials_from_file 
+from google.genai.types import  Content, Part
+# from google.auth import default 
 from langchain_core.documents import Document 
+from .gemini_client import GeminiClient 
+
 import json 
 from pathlib import Path 
 import base64
@@ -22,14 +24,14 @@ logging.basicConfig(level =logging.INFO )
  
 logger = logging.getLogger(__name__) 
 
-print(os.path.abspath("key.json"))
+# print(os.path.abspath("key.json"))
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("key.json")
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("key.json")
 # KEY_PATH = os.path.abspath("key.json")  
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = KEY_PATH 
 load_dotenv()
 UNSTRUCTURED_API_KEY = os.environ["UNSTRUCTURED_API_KEY"]
-_ , PROJECT_ID = default() 
+# _ , PROJECT_ID = default() 
 LOCATION = "us-central1" 
 
 def elements_from_base64_gzipped_json(b64_encoded_elements: str):
@@ -50,27 +52,12 @@ class UIOPROCESSOR :
         self.uio_client = unstructured_client.UnstructuredClient(
           api_key_auth=UNSTRUCTURED_API_KEY
          )
-        self._gemini_client = None 
+        self._gemini_client = GeminiClient() 
         self.chunk_size = 2000
         
-    async def initialize_gemini_client(self):
-        try:
-            if self._gemini_client is None : 
-                self._gemini_client = genai.Client(
-                    vertexai=True,
-                    project=PROJECT_ID,
-                    location=LOCATION,
-                    http_options=HttpOptions(api_version="v1")
-                )
-                logger.info("Gemini client initialized successfully")
-                
-                return self._gemini_client 
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            raise    
         
     def get_request(self, file : bytes , filename : str ,  **kwargs):
-        # Default parameters
+  
 
     
         defaults = {
@@ -87,7 +74,7 @@ class UIOPROCESSOR :
             "include_orig_elements": True
         }
         
-        # Override defaults with any provided kwargs
+
         params = {**defaults, **kwargs}
         
         request = operations.PartitionRequest(
@@ -104,12 +91,6 @@ class UIOPROCESSOR :
     
 
  
-    
-    
-    
-    
-    
-    
      
     async def process_pdf(self, file : bytes, filename : str ,  **kwargs) -> List[Document]:
  
@@ -305,7 +286,7 @@ class UIOPROCESSOR :
                     atomic_elements_objects = elements_from_base64_gzipped_json(orig_elements_compressed)
                     logger.info(f"Decompressed {len(atomic_elements_objects)} atomic elements")
                     
-                    atomic_elements_dicts: List[Dict] = []
+                    # atomic_elements_dicts: List[Dict] = []
                 
                     # ###convert element objects to dicts 
                     # for elem_obj in atomic_elements_objects:
@@ -316,7 +297,7 @@ class UIOPROCESSOR :
                     #         continue
                     
                     # separating different types of elements
-                    for element_idx, element in enumerate(atomic_elements_dicts):
+                    for element_idx, element in enumerate(atomic_elements_objects):
                         try:
                             element_type = element.get("type", "Unknown")
                             logger.info(f"Processing atomic element {element_idx + 1}: {element_type}")
@@ -389,9 +370,7 @@ class UIOPROCESSOR :
     async def create_enhanced_text(self,  text: str, tables: List[Dict[str, Any]], images: List[Dict[str, Any]]) -> str:
 
         try:
-            if not self._gemini_client:
-                await self.initialize_gemini_client() 
-        
+    
 
             prompt = f"""You are creating a searchable description for document content retrieval.
     CONTENT TO ANALYZE:
@@ -442,25 +421,11 @@ class UIOPROCESSOR :
             ]
             
             # Generate enhanced content using Gemini 2.5 Flash
-            response = self._gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=contents,
-                config=GenerateContentConfig(
-                    thinking_config=ThinkingConfig(thinking_budget=0)  , 
-                    temperature=0.1  , 
-                    max_output_tokens=2048# Cost optimized
-                )
+            enhanced_text = await self._gemini_client.generate_response(
+                contents=contents , 
+                temperature=0.2
             )
             
-            
-
-            
-            if response and hasattr(response, 'text') and response.text:
-               enhanced_text = response.text.strip()
-            else:
-               raise ValueError("Invalid or empty response from Gemini API")
-            
-    
             logger.info(f"Successfully generated enhanced text ({len(enhanced_text)} characters)")
             return enhanced_text
             

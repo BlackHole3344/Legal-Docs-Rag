@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 class RedisImageCache:    
     def __init__(self, host = None , port=6379, db=0):  # Changed default to localhost for testing
         try:
-            
+            print(REDIS_HOST)
             if host is None : 
-                host = os.getenv("REDIS_HOST" , "redis")
+                host = os.getenv("REDIS_HOST" , "localhost")
                 
                 
             self.redis_client = redis.Redis(

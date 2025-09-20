@@ -6,6 +6,7 @@ from google.genai.types import HttpOptions
 from google.auth import load_credentials_from_file
 from google.genai.types import HttpOptions, Content, Part, GenerateContentConfig, ThinkingConfig
 from google.auth import default
+from ..gemini_client import GeminiClient 
 import os
 from dotenv import load_dotenv
 import json 
@@ -24,8 +25,8 @@ class GeminiQADataAugmentor:
     Augmentor for creating comprehensive QA responses using extracted Qdrant data with Gemini
     """
     
-    def __init__(self, gemini_client=None):
-        self._gemini_client = gemini_client
+    def __init__(self):
+        self._gemini_client = GeminiClient()
         logger.info("GeminiQADataAugmentor initialized")
     
     # def extract_augment_data(self, points: List[Any]) -> Dict[str, List[Any]]:
@@ -98,7 +99,7 @@ class GeminiQADataAugmentor:
             try:
                 payload = point.payload
                 types = payload.get('types', [])
-                logger.debug(f"Processing point {i+1}/{len(points)} with types: {types}")
+                logger.info(f"Processing point {i+1}/{len(points)} with types: {types}")
                 
     
                 try:
@@ -112,7 +113,7 @@ class GeminiQADataAugmentor:
                     raw_text = original_content['raw_text']
                     if raw_text and raw_text.strip():
                         raw_texts.append(raw_text)
-                        logger.debug(f"Extracted text from point {i+1} ({len(raw_text)} chars)")
+                        logger.info(f"Extracted text from point {i+1} ({len(raw_text)} chars)")
                 
    
                 if 'image' in [t.lower() for t in types] and 'images_base64' in original_content:
@@ -121,7 +122,7 @@ class GeminiQADataAugmentor:
                         for img in point_images:
                             image_id = f"img_{len(image_mappings) + 1:03d}"
                             image_mappings[image_id] = img
-                        logger.debug(f"Extracted {len(point_images)} images from point {i+1}")
+                        logger.info(f"Extracted {len(point_images)} images from point {i+1}")
                 
          
                 if 'table' in [t.lower() for t in types] and 'tables_html' in original_content:
@@ -130,7 +131,7 @@ class GeminiQADataAugmentor:
                         for table in point_tables:
                             table_id = f"table_{len(table_mappings) + 1:03d}"
                             table_mappings[table_id] = table
-                        logger.debug(f"Extracted {len(point_tables)} tables from point {i+1}")
+                        logger.info(f"Extracted {len(point_tables)} tables from point {i+1}")
                         
             except Exception as e:
                 logger.error(f"Error processing point {i+1}: {e}")
@@ -145,6 +146,8 @@ class GeminiQADataAugmentor:
             'image_mappings': image_mappings,
             'table_mappings': table_mappings
         }
+        
+        print(f"result are : {result}") 
         
         logger.info(f"Data extraction completed: {len(raw_texts)} texts, {len(image_mappings)} images, {len(table_mappings)} tables")
         return result
@@ -163,97 +166,101 @@ class GeminiQADataAugmentor:
 
     def _create_retrieval_system_prompt(self, user_query: str, augmented_data: Dict[str, Any]) -> str:
     
-        logger.debug("Creating retrieval system prompt")
-        
-        prompt = f"""You are a Legal Document Demystification Assistant. Your mission is to make complex legal language accessible and understandable to everyone, regardless of their legal background or language proficiency.
+        logger.info("Creating retrieval system prompt")
+        try : 
+            prompt = f"""You are a Legal Document Demystification Assistant. Your mission is to make complex legal language accessible and understandable to everyone, regardless of their legal background or language proficiency.
 
-    USER QUESTION: {user_query}
+        USER QUESTION: {user_query}
 
-    CORE PRINCIPLES:
-    - Transform complex legal jargon into clear, everyday language
-    - Respond in the user's language or requested language
-    - Explain rights, obligations, consequences, and practical implications
-    - Use simple, everyday words instead of legal jargon
-    - Provide practical implications and real-life context
-    - Clearly identify what the person CAN do, MUST do, and CANNOT do
-    - Highlight potential penalties, deadlines, or negative outcomes
-    - Define important legal terms in simple language
+        CORE PRINCIPLES:
+        - Transform complex legal jargon into clear, everyday language
+        - Respond in the user's language or requested language
+        - Explain rights, obligations, consequences, and practical implications
+        - Use simple, everyday words instead of legal jargon
+        - Provide practical implications and real-life context
+        - Clearly identify what the person CAN do, MUST do, and CANNOT do
+        - Highlight potential penalties, deadlines, or negative outcomes
+        - Define important legal terms in simple language
 
-    CITATION REQUIREMENTS:
-    When referencing any tables or images in your response, you MUST cite them using these formats:
-    - For tables: [TABLE:table_001], [TABLE:table_002], etc.
-    - For images: [IMAGE:img_001], [IMAGE:img_002], etc.
-    Only cite media that directly supports your answer or provides essential context.
+        CITATION REQUIREMENTS:
+        When referencing any tables or images in your response, you MUST cite them using these formats:
+        - For tables: [TABLE:table_001], [TABLE:table_002], etc.
+        - For images: [IMAGE:img_001], [IMAGE:img_002], etc.
+        Only cite media that directly supports your answer or provides essential context.
 
-    CONTENT SOURCES:
-    """
-        
-        # Add text content
-        if augmented_data.get('raw_texts'):
-            prompt += "\n=== DOCUMENT TEXT CONTENT ===\n"
-            for i, text_item in enumerate(augmented_data['raw_texts'], 1):
-                prompt += f"\nSource {i}:\n{text_item}\n"
-            logger.debug(f"Added {len(augmented_data['raw_texts'])} text sources to prompt")
-        
-        # Add table content with unique IDs
-        if augmented_data.get('tables'):
-            prompt += "\n=== LEGAL TABLES AND STRUCTURED DATA ===\n"
-            prompt += "IMPORTANT: These tables contain critical legal terms, rates, penalties, or procedures. Reference them using [TABLE:table_ID] format when citing.\n\n"
+        CONTENT SOURCES:
+        """
             
-            for i, (table_id  , table )  in enumerate(augmented_data['tables'].items(), 1):
-                prompt += f"Table ID: {table_id}\n{table}\n\n"
-            logger.debug(f"Added {len(augmented_data['tables'].items())} tables to prompt")
-        
-        # Add image instructions with unique IDs
-        if augmented_data.get('images'):
-            prompt += f"\n=== LEGAL DOCUMENT IMAGES ===\n"
-            prompt += f"Number of images provided: {len(augmented_data['images'].items())}\n"
-            prompt += "Image IDs: " + ", ".join(augmented_data['image_mappings'].keys())+ "\n"
-            prompt += "ANALYZE FOR: Signatures, seals, legal stamps, diagrams, flowcharts, legal forms, or visual elements affecting legal interpretation.\n"
-            prompt += "CITATION: Reference specific images using [IMAGE:img_ID] format when they support your answer.\n"
-            logger.debug(f"Added instructions for {len(augmented_data['images'].items())} images")
-        
-        prompt += """
+            # Add text content
+            
+            logger.info(f"Adding content into prompt....(texts , tables , images)")
+            if augmented_data.get('raw_texts'):
+                prompt += "\n=== DOCUMENT TEXT CONTENT ===\n"
+                for i, text_item in enumerate(augmented_data['raw_texts'], 1):
+                    prompt += f"\nSource {i}:\n{text_item}\n"
+                logger.info(f"Added {len(augmented_data['raw_texts'])} text sources to prompt")
+            
+            # Add table content with unique IDs
+            if augmented_data.get('table_mappings'):
+                prompt += "\n=== LEGAL TABLES AND STRUCTURED DATA ===\n"
+                prompt += "IMPORTANT: These tables contain critical legal terms, rates, penalties, or procedures. Reference them using [TABLE:table_ID] format when citing.\n\n"
+                
+                for i, (table_id  , table )  in enumerate(augmented_data['table_mappings'].items(), 1):
+                    prompt += f"Table ID: {table_id}\n{table}\n\n"
+                logger.info(f"Added {len(augmented_data['table_mappings'].items())} tables to prompt")
+            
+            # Add image instructions with unique IDs
+            if augmented_data.get('image_mappings'):
+                prompt += f"\n=== LEGAL DOCUMENT IMAGES ===\n"
+                prompt += f"Number of images provided: {len(augmented_data['image_mappings'].items())}\n"
+                prompt += "Image IDs: " + ", ".join(augmented_data['image_mappings'].keys())+ "\n"
+                prompt += "ANALYZE FOR: Signatures, seals, legal stamps, diagrams, flowcharts, legal forms, or visual elements affecting legal interpretation.\n"
+                prompt += "CITATION: Reference specific images using [IMAGE:img_ID] format when they support your answer.\n"
+                logger.info(f"Added instructions for {len(augmented_data['image_mappings'].items())} images")
+            
+            prompt += """
 
-    RESPONSE FORMAT:
+        RESPONSE FORMAT:
 
-    ## Quick Answer
-    [Direct answer to the user's question in simple terms]
+        ## Quick Answer
+        [Direct answer to the user's question in simple terms]
 
-    ## Document Overview
-    **Document Type**: [What kind of legal document this is]
-    **Main Purpose**: [Why this document exists and what it accomplishes]
+        ## Document Overview
+        **Document Type**: [What kind of legal document this is]
+        **Main Purpose**: [Why this document exists and what it accomplishes]
 
-    ## Key Parties and Responsibilities
-    **Your Role**: [User's role, rights, and responsibilities]
-    **Other Party**: [Counterparty's role and obligations]
+        ## Key Parties and Responsibilities
+        **Your Role**: [User's role, rights, and responsibilities]
+        **Other Party**: [Counterparty's role and obligations]
 
-    ## Financial Implications
-    **Costs and Fees**: [Any payments, premiums, or deposits required]
-    **Penalties**: [Fines or charges for violations]
-    **Benefits**: [Money, refunds, or financial protections available]
+        ## Financial Implications
+        **Costs and Fees**: [Any payments, premiums, or deposits required]
+        **Penalties**: [Fines or charges for violations]
+        **Benefits**: [Money, refunds, or financial protections available]
 
-    ## Critical Requirements and Deadlines
-    **Mandatory Actions**: [Essential obligations and requirements]
-    **Prohibited Actions**: [What cannot be done]
-    **Important Deadlines**: [Time-sensitive requirements]
+        ## Critical Requirements and Deadlines
+        **Mandatory Actions**: [Essential obligations and requirements]
+        **Prohibited Actions**: [What cannot be done]
+        **Important Deadlines**: [Time-sensitive requirements]
 
-    ## Rights and Protections
-    [Legal rights, protections, and entitlements]
+        ## Rights and Protections
+        [Legal rights, protections, and entitlements]
 
-    ## Limitations and Exclusions
-    [What is not covered, exceptions, and restrictions]
+        ## Limitations and Exclusions
+        [What is not covered, exceptions, and restrictions]
 
-    ## Referenced Content Summary
-    **Tables Used**: [List table IDs and brief explanation of why each was referenced]
-    **Images Used**: [List image IDs and brief explanation of their relevance]
+        ## Referenced Content Summary
+        **Tables Used**: [List table IDs and brief explanation of why each was referenced]
+        **Images Used**: [List image IDs and brief explanation of their relevance]
 
-    IMPORTANT: Only include the "Referenced Content Summary" section if you actually cited tables or images in your response.
-    """
-        
-        logger.debug(f"System prompt created ({len(prompt)} characters)")
-        return prompt
-
+        IMPORTANT: Only include the "Referenced Content Summary" section if you actually cited tables or images in your response.
+        """
+            
+            logger.debug(f"System prompt created ({len(prompt)} characters)")
+            return prompt
+        except Exception as e : 
+            logger.error(f"Error Somewhere creating System Prompt : {e}")
+            raise e 
     def _create_image_analysis_prompt(self, num_images: int) -> str:
         """Create image analysis prompt with citation instructions"""
         logger.debug(f"Creating image analysis prompt for {num_images} images")
@@ -282,6 +289,9 @@ class GeminiQADataAugmentor:
             augmented_data = self.extract_augment_data(points)
             
             # Step 2: Create system prompt
+            
+            print(f"Augumented data Tables : {augmented_data.get('tables_mappings')}")
+            
             logger.info("Step 2: Creating system prompt")
             system_prompt = self._create_retrieval_system_prompt(user_query, augmented_data)
             
@@ -290,12 +300,12 @@ class GeminiQADataAugmentor:
             message_parts = [Part.from_text(text=system_prompt)]
             
             # Add images if present
-            if augmented_data.get('images'):
-                logger.info(f"Adding {len(augmented_data['images'].items())} images to analysis")
-                image_prompt = self._create_image_analysis_prompt(len(augmented_data['images']))
+            if augmented_data.get('image_mappings'):
+                logger.info(f"Adding {len(augmented_data['image_mappings'].items())} images to analysis")
+                image_prompt = self._create_image_analysis_prompt(len(augmented_data['image_mappings'].items()))
                 message_parts.append(Part.from_text(text=image_prompt))
                 
-                for i, (image_id , image) in enumerate(augmented_data['images'].items()):
+                for i, (image_id , image) in enumerate(augmented_data['image_mappings'].items()):
                     try:
                         image_data = image 
                         if image_data.startswith('data:'):
@@ -306,7 +316,7 @@ class GeminiQADataAugmentor:
                                 mime_type='image/jpeg'
                             )
                         )
-                        logger.debug(f"Added image {i+1}/{len(augmented_data['images'])} to analysis")
+                        logger.debug(f"Added image {i+1}/{len(augmented_data['image_mappings'].items())} to analysis")
                     except Exception as e:
                         logger.warning(f"Failed to process image {i+1}: {e}")
             
@@ -321,18 +331,14 @@ class GeminiQADataAugmentor:
             
             # Step 5: Generate response
             logger.info("Step 5: Generating response with Gemini")
-            response = self._gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+            response = await self._gemini_client.generate_response(
                 contents=contents,
-                config=GenerateContentConfig(
-                    thinking_config=ThinkingConfig(thinking_budget=0),
-                    temperature=0.2,
-                    max_output_tokens=4096
-                )
+                max_output_tokens=4096 , 
+                temperature=0.1 
             )
             
-            if response and hasattr(response, 'text') and response.text:
-                enhanced_answer = response.text.strip()
+            if response :
+                enhanced_answer = response
                 logger.info(f"Successfully generated answer ({len(enhanced_answer)} characters)")
                 
                 # Extract cited images and tables for filtering
@@ -472,23 +478,16 @@ class GeminiQADataAugmentor:
             
             # Step 5: Generate response
             logger.info("Step 5: Generating response with Gemini")
-            response = self._gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+            response = await self._gemini_client.generate_response(
                 contents=contents,
-                config=GenerateContentConfig(
-                    thinking_config=ThinkingConfig(thinking_budget=0),
-                    temperature=0.2,
-                    max_output_tokens=4096
-                )
+                temperature=0.2,
+                max_output_tokens=4096
             )
             
-            if response and hasattr(response, 'text') and response.text:
-                logger.info("Image chat response generated successfully")
-                return response.text.strip()
-            else:
-                logger.error("Invalid response from Gemini")
-                return "I'm sorry, I couldn't generate a proper response. Please try again."
-                
+            
+            return response 
+            
+
         except Exception as e:
             logger.error(f"Error generating image chat response: {e}")
             return f"I encountered an error while processing your request: {str(e)}"

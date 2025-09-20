@@ -13,16 +13,17 @@ from google.auth import load_credentials_from_file
 from google.genai.types import HttpOptions, Content, Part, GenerateContentConfig, ThinkingConfig
 from google.auth import default 
 from .redis_cache import RedisImageCache 
+from .gemini_client import GeminiClient 
 # Configuration
 
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "your-project-id")
-print(os.path.abspath("key.json"))
+# PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "your-project-id")
+# print(os.path.abspath("key.json"))
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("key.json")
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("key.json")
 
 load_dotenv() 
-_ , PROJECT_ID = default() 
-LOCATION = "us-central1" 
+# _ , PROJECT_ID = default() 
+# LOCATION = "us-central1" 
 logger = logging.getLogger(__name__)
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")  # Changed for local testing
@@ -32,26 +33,12 @@ class ImageProcessor:
 
     
     def __init__(self):
-        self._gemini_client = None
+        self._gemini_client = GeminiClient()
         # self.cache_dir = Path(CACHE_DIR)
         # self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache = RedisImageCache(host=REDIS_HOST, port=REDIS_PORT)
         
-    async def initialize_gemini_client(self):
-        """Initialize Gemini client"""
-        try:
-            if self._gemini_client is None:
-                self._gemini_client = genai.Client(
-                    vertexai=True,
-                    project=PROJECT_ID,
-                    location=LOCATION,
-                    http_options=HttpOptions(api_version="v1")
-                )
-                logger.info("Gemini client initialized successfully")
-            return self._gemini_client
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            raise
+  
     
     def _get_image_hash(self, image_data: bytes) -> str:
         return hashlib.sha256(image_data).hexdigest()
@@ -91,7 +78,7 @@ class ImageProcessor:
                 }
             
     
-            await self.initialize_gemini_client()
+
             
 
             if len(images_data) == 1:
@@ -136,24 +123,16 @@ class ImageProcessor:
 
             contents = [Content(role="user", parts=message_parts)]
  
-            response = self._gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+            response = await self._gemini_client.generate_response(
                 contents=contents,
-                config=GenerateContentConfig(
-                    thinking_config=ThinkingConfig(thinking_budget=0),
-                    temperature=0.1,
-                    max_output_tokens=4096  # Increased for multiple images
-                )
+                temperature=0.1 
             )
-            
-            if not response or not hasattr(response, 'text') or not response.text:
-                raise ValueError("Invalid or empty response from Gemini API")
-            
+  
 
             result = {
                 "status": "success",
                 "filenames": filenames,
-                "summary": response.text.strip()[:100],
+                "summary": response,
                 "processed_at": datetime.now().isoformat(),
                 "source": "processed",
                 "common_id": common_id,

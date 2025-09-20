@@ -2,8 +2,11 @@ services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "3000:3000"
+    env_file :
+      - ./.env 
     environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=./key.json  
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
