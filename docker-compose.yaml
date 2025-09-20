@@ -1,0 +1,44 @@
+# docker-compose.yml - For separate frontend/backend projects
+services:
+  # FastAPI Backend
+  backend:
+    build: 
+      context: ./backend          # Points to your backend directory
+      dockerfile: Dockerfile
+    container_name: legal-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    volumes:
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+
+  # Streamlit Frontend  
+  frontend:
+    build:
+      context: ./frontend         # Points to your frontend directory  
+      dockerfile: Dockerfile
+    container_name: legal-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8080  # This is the key change
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: legal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:

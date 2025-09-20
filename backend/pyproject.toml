@@ -1,0 +1,20 @@
+[project]
+name = "document-processing"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp>=3.12.15",
+    "dotenv>=0.9.9",
+    "fastapi>=0.116.2",
+    "google-genai>=1.36.0",
+    "langchain-core>=0.3.76",
+    "python-magic>=0.4.27",
+    "python-multipart>=0.0.20",
+    "qdrant-client>=1.15.1",
+    "redis>=6.4.0",
+    "unstructured-client>=0.42.3",
+    "uvicorn>=0.35.0",
+    "vertexai>=1.71.1",
+]

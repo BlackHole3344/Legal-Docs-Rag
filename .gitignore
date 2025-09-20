@@ -1,0 +1,7 @@
+echo "*.pyc
+__pycache__/
+.env
+.venv/
+uploads/*
+!uploads/.gitkeep
+*.log" > .gitignore
