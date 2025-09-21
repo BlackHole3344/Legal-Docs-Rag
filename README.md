@@ -1,98 +1,98 @@
-# Legal Document RAG System
+# ⚖️ Legal Document RAG System
 
-## Overview
+## 📋 Overview
 
 This project is a sophisticated legal document processing and question-answering system developed for the Google GenAI Hack2Skill hackathon 2025. Instead of building a traditional open-source RAG system that requires extensive API key management and setup, we've created a managed service that abstracts the complexity away from end users.
 
-## Architecture
+## 🏗️ Architecture
 
 The system employs a microservices architecture with the following components:
 
-- **Frontend**: Flask-based web application for user interaction
-- **Backend**: FastAPI service handling document processing and AI interactions
-- **Nginx**: Reverse proxy for routing and load balancing
-- **Redis**: Caching layer for image processing and session management
-- **Cloudflared**: Tunnel service for secure external access
+- **🌐 Frontend**: Flask-based web application for user interaction
+- **⚡ Backend**: FastAPI service handling document processing and AI interactions
+- **🔀 Nginx**: Reverse proxy for routing and load balancing
+- **💾 Redis**: Caching layer for image processing and session management
+- **☁️ Cloudflared**: Tunnel service for secure external access
 
-## Key Features
+## ✨ Key Features
 
-### Advanced Document Processing
-- **Semantic Chunking**: Uses Unstructured.io API for sophisticated document parsing
-- **Multi-modal Processing**: Handles text, images, tables, and infographics in legal documents
-- **Enhanced Text Generation**: Expands chunks with contextual information from images and tables
-- **Atomic Element Processing**: Breaks documents into headers, images, tables, texts, titles, and narrative texts
+### 📄 Advanced Document Processing
+- **🧩 Semantic Chunking**: Uses Unstructured.io API for sophisticated document parsing
+- **🎭 Multi-modal Processing**: Handles text, images, tables, and infographics in legal documents
+- **🔍 Enhanced Text Generation**: Expands chunks with contextual information from images and tables
+- **⚛️ Atomic Element Processing**: Breaks documents into headers, images, tables, texts, titles, and narrative texts
 
-### Intelligent Embeddings
-- **Custom Embedding Pipeline**: Uses EmbeddingGemma 2025 (300M model) running on ONNX runtime
-- **Batch Processing**: Optimized for performance with grouped embedding generation
-- **Vector Storage**: Utilizes Qdrant for efficient vector storage and retrieval
+### 🧠 Intelligent Embeddings
+- **🔧 Custom Embedding Pipeline**: Uses EmbeddingGemma 2025 (300M model) running on ONNX runtime
+- **📦 Batch Processing**: Optimized for performance with grouped embedding generation
+- **🗂️ Vector Storage**: Utilizes Qdrant for efficient vector storage and retrieval
 
-### Image Processing Strategy
-- **Large Context Window**: Leverages Gemini's extensive context capabilities
-- **Redis Caching**: Intelligent caching system using image byte hashes
-- **Multi-image Support**: Handles multiple images with combined hash-based identification
+### 🖼️ Image Processing Strategy
+- **📏 Large Context Window**: Leverages Gemini's extensive context capabilities
+- **⚡ Redis Caching**: Intelligent caching system using image byte hashes
+- **🖼️➕ Multi-image Support**: Handles multiple images with combined hash-based identification
 
-## Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
-- Docker and Docker Compose
-- Google Cloud Platform account with Vertex AI access
-- GCP service account key file
+### 📋 Prerequisites
+- 🐳 Docker and Docker Compose
+- ☁️ Google Cloud Platform account with Vertex AI access
+- 🔑 GCP service account key file
 
-### Setup Instructions
+### ⚙️ Setup Instructions
 
-1. **Clone the repository**
+1. **📥 Clone the repository**
    ```bash
    git clone <repository-url>
    cd legal-document-rag
    ```
 
-2. **Configure environment variables**
+2. **🔧 Configure environment variables**
    ```bash
    cp .env.example .env
    # Edit .env with your configuration values
    ```
 
-3. **Add GCP credentials**
+3. **🔐 Add GCP credentials**
    ```bash
    # Place your GCP service account key file
    cp /path/to/your/service-account-key.json ./backend/key.json
    ```
 
-4. **Launch the application**
+4. **🚀 Launch the application**
    ```bash
    docker compose up -d --build
    ```
 
-5. **Access the application**
-   - Main application: `http://localhost:8087`
-   - Backend API docs: `http://localhost:8087/docs` (via Nginx proxy)
-   - Redis: `localhost:6379`
+5. **🌐 Access the application**
+   - 🏠 Main application: `http://localhost:8087`
+   - 📖 Backend API docs: `http://localhost:8087/docs` (via Nginx proxy)
+   - 💾 Redis: `localhost:6379`
 
-## Environment Configuration
+## ⚙️ Environment Configuration
 
 Create a `.env` file based on `.env.example` with the following required variables:
 
 ```env
-# Google Cloud Configuration
+# ☁️ Google Cloud Configuration
 GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp_key
 GCP_PROJECT_ID=your-project-id
 GCP_LOCATION=your-preferred-location
 
-# API Keys
+# 🔑 API Keys
 UNSTRUCTURED_API_KEY=your-unstructured-api-key
 QDRANT_API_KEY=your-qdrant-api-key
 QDRANT_URL=your-qdrant-cluster-url
 
-# Application Configuration
+# 🔧 Application Configuration
 BACKEND_URL=http://backend:3000
 REDIS_URL=redis://redis:6379
 
-# Optional: Cloudflared Configuration
+# 🌐 Optional: Cloudflared Configuration
 CLOUDFLARED_TUNNEL_TOKEN=your-tunnel-token
 ```
 
-## Service Architecture
+## 🏛️ Service Architecture
 
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
