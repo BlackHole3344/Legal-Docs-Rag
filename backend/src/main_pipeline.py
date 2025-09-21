@@ -90,7 +90,7 @@ class DocumentProcessor:
                     
                     # Enhanced response with collection info
                     response = {
-                        **upload_stats,
+                        # **upload_stats,
                         "collection_name": collection_name,
                         "filenames": filenames,
                         "document_count": len(documents)
