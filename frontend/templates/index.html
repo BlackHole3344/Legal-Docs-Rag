@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Document Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.3.8/dist/purify.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'bounce-dot': 'bounce-dot 1.4s infinite ease-in-out both',
+                        'slide-in': 'slide-in 0.3s ease-out',
+                        'fade-in': 'fade-in 0.2s ease-out'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #4f46e5, #7c3aed); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #3730a3, #6d28d9); }
+        @keyframes bounce-dot { 0%, 80%, 100% { transform: scale(0); opacity: 0.5; } 40% { transform: scale(1.0); opacity: 1; } }
+        @keyframes slide-in { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .dot-bounce div { width: 8px; height: 8px; border-radius: 50%; display: inline-block; animation: bounce-dot 1.4s infinite ease-in-out both; margin: 0 2px; }
+        .dark .dot-bounce div { background: linear-gradient(135deg, #818cf8, #a78bfa); }
+        .dot-bounce div { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+        .dot-bounce .dot1 { animation-delay: -0.32s; }
+        .dot-bounce .dot2 { animation-delay: -0.16s; }
+        .glass-effect { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+        .dark .glass-effect { background: rgba(17, 24, 39, 0.75); border-color: rgba(255, 255, 255, 0.08); }
+        .glass-effect { background: rgba(255, 255, 255, 0.85); border-color: rgba(0, 0, 0, 0.08); }
+        .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); transition: all 0.3s ease; transform: translateY(0); }
+        .btn-primary:hover { background: linear-gradient(135deg, #4f46e5, #7c3aed); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
+        .card-interactive { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .card-interactive:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15); }
+        .dark .card-interactive:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6); }
+        .prose-enhanced { line-height: 1.7; overflow-x: auto; }
+        .dark .prose-enhanced { color: #e5e7eb; }
+        .dark .prose-enhanced h1, .dark .prose-enhanced h2, .dark .prose-enhanced h3, .dark .prose-enhanced h4 { color: #f9fafb; font-weight: 600; }
+        .dark .prose-enhanced a { color: #a78bfa; text-decoration: none; }
+        .dark .prose-enhanced a:hover { color: #c4b5fd; text-decoration: underline; }
+        .dark .prose-enhanced strong { color: #f3f4f6; font-weight: 600; }
+        .dark .prose-enhanced code { color: #f1f5f9; background: rgba(51, 65, 85, 0.8); padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.875rem; }
+        .dark .prose-enhanced pre { background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(51, 65, 85, 0.5); }
+        .dark .prose-enhanced blockquote { border-left: 4px solid #6366f1; background: rgba(51, 65, 85, 0.3); margin: 1rem 0; padding: 1rem 1.5rem; font-style: italic; }
+        .prose-enhanced { color: #374151; }
+        .prose-enhanced h1, .prose-enhanced h2, .prose-enhanced h3, .prose-enhanced h4 { color: #111827; font-weight: 600; }
+        .prose-enhanced a { color: #7c3aed; text-decoration: none; }
+        .prose-enhanced a:hover { color: #5b21b6; text-decoration: underline; }
+        .prose-enhanced strong { color: #1f2937; font-weight: 600; }
+        .prose-enhanced code { color: #1e293b; background: rgba(241, 245, 249, 0.8); padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.875rem; }
+        .prose-enhanced pre { background: rgba(248, 250, 252, 0.9); border: 1px solid rgba(203, 213, 225, 0.5); }
+        .prose-enhanced blockquote { border-left: 4px solid #6366f1; background: rgba(241, 245, 249, 0.3); margin: 1rem 0; padding: 1rem 1.5rem; font-style: italic; }
+        @media (max-width: 768px) {
+            .sidebar-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 40; }
+            .sidebar-mobile { position: fixed; top: 0; left: 0; bottom: 0; width: 320px; z-index: 50; transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+            .sidebar-mobile.open { transform: translateX(0); }
+        }
+        .input-enhanced { transition: all 0.3s ease; background: rgba(255, 255, 255, 0.05); }
+        .dark .input-enhanced { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }
+        .input-enhanced { background: rgba(0, 0, 0, 0.02); border-color: rgba(0, 0, 0, 0.1); }
+        .input-enhanced:focus { background: rgba(255, 255, 255, 0.1); border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+        .loading-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-slate-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
+    <div class="flex h-screen overflow-hidden">
+        <div id="sidebar-overlay" class="sidebar-overlay hidden md:hidden"></div>
+        
+        <aside id="sidebar" class="sidebar-mobile md:relative md:translate-x-0 w-80 glass-effect border-r border-gray-200/20 dark:border-gray-700/30 flex flex-col h-screen">
+            <div class="p-6 border-b border-gray-200/20 dark:border-gray-700/30 flex-shrink-0">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <i class="fas fa-gavel text-xl text-white"></i>
+                            </div>
+                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white dark:border-gray-800"></div>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Legal Assistant</h1>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                                <i class="fas fa-robot mr-1"></i>
+                                AI-Powered Analysis
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-sun text-yellow-500 dark:hidden"></i>
+                            <i class="fas fa-moon text-indigo-400 hidden dark:block"></i>
+                        </button>
+                        <button id="sidebar-close" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors md:hidden">
+                            <i class="fas fa-times text-gray-500"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
+                <div class="p-6 flex-shrink-0">
+                    <div id="upload-section" class="glass-effect rounded-2xl p-5 border border-gray-200/30 dark:border-gray-700/30">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold flex items-center">
+                                <i class="fas fa-cloud-upload-alt mr-2 text-indigo-500"></i>
+                                Upload Documents
+                            </h2>
+                            <div class="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                <span id="upload-count">0/10</span>
+                            </div>
+                        </div>
+                        <div class="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-xl mb-4">
+                            <button id="pdf-mode-btn" class="flex-1 py-2.5 text-sm font-medium rounded-lg btn-primary text-white transition-all duration-300 flex items-center justify-center">
+                                <i class="fas fa-file-pdf mr-2"></i>PDFs
+                            </button>
+                            <button id="image-mode-btn" class="flex-1 py-2.5 text-sm font-medium rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 flex items-center justify-center">
+                                <i class="fas fa-images mr-2"></i>Images
+                            </button>
+                        </div>
+                        <form id="upload-form">
+                            <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all duration-300 group" id="drop-zone">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                        <i class="fas fa-cloud-upload-alt text-2xl text-indigo-500"></i>
+                                    </div>
+                                    <p class="text-gray-700 dark:text-gray-300 font-medium">Drop files here or click to browse</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2" id="file-type-info">PDF files supported (Max 50MB each)</p>
+                                </div>
+                                <input type="file" id="file-input" multiple class="hidden">
+                            </div>
+                        </form>
+                        <div id="file-list-container" class="mt-4 hidden">
+                            <div class="max-h-32 overflow-y-auto custom-scrollbar">
+                                <div id="file-list" class="space-y-2"></div>
+                            </div>
+                            <button id="upload-btn" class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-xl mt-4 transition-all duration-300 flex items-center justify-center shadow-lg">
+                                <i class="fas fa-rocket mr-2"></i>Process Files
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="processing-status" class="hidden px-6 flex-shrink-0"></div>
+                
+                <div class="px-6 pb-6 flex-1 flex flex-col">
+                    <div class="h-full glass-effect rounded-2xl p-5 border border-gray-200/30 dark:border-gray-700/30 flex flex-col">
+                        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+                            <h2 class="text-lg font-semibold flex items-center">
+                                <i class="fas fa-history mr-2 text-indigo-500"></i>
+                                History
+                            </h2>
+                            <button id="clear-history" class="text-xs text-gray-500 hover:text-red-500 transition-colors">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        <div id="history-list" class="flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                            <div class="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-folder-open text-3xl mb-3 opacity-50"></i>
+                                <p class="text-sm text-center">Your processed documents will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-screen">
+            <header class="md:hidden glass-effect border-b border-gray-200/20 dark:border-gray-700/30 p-4 flex-shrink-0">
+                <div class="flex items-center justify-between">
+                    <button id="sidebar-toggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-bars text-gray-600 dark:text-gray-300"></i>
+                    </button>
+                    <h1 class="text-lg font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Legal Assistant</h1>
+                    <button id="theme-toggle-mobile" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-sun text-yellow-500 dark:hidden"></i>
+                        <i class="fas fa-moon text-indigo-400 hidden dark:block"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div id="chat-container" class="flex-1 overflow-y-auto custom-scrollbar">
+                <div id="welcome-message" class="flex flex-col items-center justify-center h-full text-center p-8">
+                    <div class="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-3xl flex items-center justify-center mb-6 animate-pulse">
+                        <i class="fas fa-file-contract text-4xl text-indigo-500"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">Welcome to Legal Assistant</h2>
+                    <p class="text-gray-600 dark:text-gray-400 max-w-md leading-relaxed">
+                        Upload your legal documents or images to begin intelligent analysis and get instant answers to your questions.
+                    </p>
+                    <div class="flex items-center mt-6 space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                        <div class="flex items-center"><i class="fas fa-file-pdf text-red-500 mr-1"></i> PDF Support</div>
+                        <div class="flex items-center"><i class="fas fa-images text-blue-500 mr-1"></i> Image Analysis</div>
+                        <div class="flex items-center"><i class="fas fa-brain text-purple-500 mr-1"></i> AI Powered</div>
+                    </div>
+                </div>
+                <div id="chat-messages" class="p-6 space-y-6 animate-fade-in"></div>
+            </div>
+
+            <div id="chat-input-section" class="hidden border-t border-gray-200/20 dark:border-gray-700/30 glass-effect p-6 flex-shrink-0">
+                <form id="chat-form" class="relative max-w-4xl mx-auto">
+                    <div class="relative">
+                        <textarea id="chat-input" class="w-full input-enhanced border border-gray-300 dark:border-gray-600 rounded-2xl p-4 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 min-h-[60px] max-h-32" placeholder="Ask me anything about your documents..." rows="1"></textarea>
+                        <div class="absolute right-2 bottom-2 flex items-center space-x-2">
+                            <div class="text-xs text-gray-400 px-2"><span id="char-count">0</span>/2000</div>
+                            <button type="submit" class="btn-primary text-white rounded-xl p-3 hover:scale-105 transition-all duration-300 flex items-center justify-center shadow-lg">
+                                <i class="fas fa-paper-plane text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mt-3 text-xs text-gray-500">
+                        <div class="flex items-center space-x-4">
+                            <span class="flex items-center"><i class="fas fa-lightbulb mr-1 text-yellow-500"></i> Press Shift+Enter for new line</span>
+                        </div>
+                        <div class="flex items-center space-x-2"><i class="fas fa-shield-alt text-green-500"></i><span>Secure & Private</span></div>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+            const html = document.documentElement;
+            function setTheme(theme) {
+                html.classList.toggle('dark', theme === 'dark');
+                localStorage.setItem('theme', theme);
+            }
+            function toggleTheme() {
+                const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
+                setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+            }
+            themeToggle?.addEventListener('click', toggleTheme);
+            themeToggleMobile?.addEventListener('click', toggleTheme);
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) { setTheme(savedTheme); } 
+            else { setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebarClose = document.getElementById('sidebar-close');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            const sidebar = document.getElementById('sidebar');
+            function openSidebar() {
+                sidebar.classList.add('open');
+                sidebarOverlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+            function closeSidebar() {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+            sidebarToggle?.addEventListener('click', openSidebar);
+            sidebarClose?.addEventListener('click', closeSidebar);
+            sidebarOverlay?.addEventListener('click', closeSidebar);
+
+            const pdfModeBtn = document.getElementById('pdf-mode-btn');
+            const imageModeBtn = document.getElementById('image-mode-btn');
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const fileListContainer = document.getElementById('file-list-container');
+            const fileList = document.getElementById('file-list');
+            const fileTypeInfo = document.getElementById('file-type-info');
+            const uploadBtn = document.getElementById('upload-btn');
+            const uploadCount = document.getElementById('upload-count');
+            const processingStatus = document.getElementById('processing-status');
+            const historyList = document.getElementById('history-list');
+            const clearHistoryBtn = document.getElementById('clear-history');
+            const chatContainer = document.getElementById('chat-container');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInputSection = document.getElementById('chat-input-section');
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-input');
+            const charCount = document.getElementById('char-count');
+            const welcomeMessage = document.getElementById('welcome-message');
+
+            let currentMode = 'pdf';
+            let selectedFiles = [];
+            let currentContext = {};
+            let historyItems = [];
+
+            function setMode(mode) {
+                currentMode = mode;
+                if (mode === 'pdf') {
+                    pdfModeBtn.classList.add('btn-primary', 'text-white');
+                    pdfModeBtn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-200', 'dark:hover:bg-gray-700');
+                    imageModeBtn.classList.remove('btn-primary', 'text-white');
+                    imageModeBtn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-200', 'dark:hover:bg-gray-700');
+                    fileTypeInfo.textContent = 'PDF files supported (Max 50MB each)';
+                    fileInput.accept = '.pdf';
+                } else {
+                    imageModeBtn.classList.add('btn-primary', 'text-white');
+                    imageModeBtn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-200', 'dark:hover:bg-gray-700');
+                    pdfModeBtn.classList.remove('btn-primary', 'text-white');
+                    pdfModeBtn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-200', 'dark:hover:bg-gray-700');
+                    fileTypeInfo.textContent = 'Images supported (PNG, JPG, etc. Max 50MB, 10 files)';
+                    fileInput.accept = 'image/*';
+                }
+                selectedFiles = [];
+                updateFileList();
+            }
+            pdfModeBtn.addEventListener('click', () => setMode('pdf'));
+            imageModeBtn.addEventListener('click', () => setMode('image'));
+
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-400', 'bg-indigo-50/50', 'dark:bg-indigo-900/20'); });
+            dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-indigo-400', 'bg-indigo-50/50', 'dark:bg-indigo-900/20'); });
+            dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-indigo-400', 'bg-indigo-50/50', 'dark:bg-indigo-900/20'); handleFiles(e.dataTransfer.files); });
+            fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+            function handleFiles(files) {
+                selectedFiles = Array.from(files);
+                if (currentMode === 'image' && selectedFiles.length > 10) {
+                    showProcessingStatus('error', 'Maximum 10 images allowed. First 10 selected.');
+                    selectedFiles = selectedFiles.slice(0, 10);
+                }
+                updateFileList();
+            }
+
+            function updateFileList() {
+                fileList.innerHTML = '';
+                uploadCount.textContent = `${selectedFiles.length}/${currentMode === 'image' ? '10' : '∞'}`;
+                if (selectedFiles.length > 0) {
+                    selectedFiles.forEach((file, index) => {
+                        const fileElement = document.createElement('div');
+                        fileElement.className = 'flex items-center justify-between glass-effect p-3 rounded-lg border border-gray-200/30 dark:border-gray-700/30 animate-fade-in';
+                        const fileIcon = currentMode === 'pdf' ? 'fas fa-file-pdf text-red-500' : 'fas fa-file-image text-blue-500';
+                        const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                        const fileName = file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name;
+                        fileElement.innerHTML = `<div class="flex items-center space-x-3"><i class="${fileIcon}"></i><div><p class="text-sm font-medium text-gray-800 dark:text-gray-200">${fileName}</p><p class="text-xs text-gray-500">${fileSize} MB</p></div></div><button class="text-red-500 hover:text-red-600 p-1" onclick="removeFile(${index})"><i class="fas fa-times"></i></button>`;
+                        fileList.appendChild(fileElement);
+                    });
+                    fileListContainer.classList.remove('hidden');
+                } else {
+                    fileListContainer.classList.add('hidden');
+                }
+            }
+            window.removeFile = (index) => {
+                selectedFiles.splice(index, 1);
+                updateFileList();
+            };
+
+            uploadBtn.addEventListener('click', async () => {
+                if (selectedFiles.length === 0) return;
+                const formData = new FormData();
+                selectedFiles.forEach(file => formData.append('files', file));
+                showProcessingStatus('loading', `Processing ${selectedFiles.length} file(s)...`);
+                uploadBtn.disabled = true;
+                try {
+                    const endpoint = currentMode === 'image' ? '/api/upload/multiple/images' : '/api/upload/pdfs';
+                    const response = await fetch(endpoint, { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.detail || result.error || 'Upload failed');
+                    handleUploadSuccess(result);
+                } catch (error) {
+                    showProcessingStatus('error', `Upload Failed: ${error.message}`);
+                } finally {
+                    uploadBtn.disabled = false;
+                }
+            });
+
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const query = chatInput.value.trim();
+                if (!query || (!currentContext.collection_id && !currentContext.common_id)) return;
+
+                appendMessage('user', query);
+                chatInput.value = '';
+                autoResize();
+                updateCharCount();
+                
+                const aiMessageContainer = showThinkingIndicator();
+                
+                try {
+                    let endpoint = '';
+                    let body = {};
+                    if (currentContext.mode === 'image') {
+                        endpoint = '/api/chat_image';
+                        body = { common_id: currentContext.common_id, query: query };
+                    } else {
+                        endpoint = `/api/chat/${currentContext.collection_id}`;
+                        body = { query, top_k: 5 };
+                    }
+
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                         throw new Error(result.detail || result.error || 'Chat request failed');
+                    }
+                    
+                    // Replace indicator with the final message
+                    removeThinkingIndicator();
+                    appendMessage('ai', result);
+                    
+                } catch (error) {
+                    removeThinkingIndicator();
+                    appendMessage('error', { response: `Error: ${error.message}` });
+                }
+            });
+
+            chatInput.addEventListener('input', updateCharCount);
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    chatForm.dispatchEvent(new Event('submit'));
+                }
+            });
+            function updateCharCount() {
+                const count = chatInput.value.length;
+                charCount.textContent = count;
+                charCount.parentElement.classList.toggle('text-red-500', count > 2000);
+            }
+
+            function showProcessingStatus(type, message) {
+                processingStatus.classList.remove('hidden');
+                let iconClass, bgClass, textClass;
+                switch (type) {
+                    case 'loading':
+                        iconClass = 'fas fa-spinner fa-spin'; bgClass = 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'; textClass = 'text-blue-700 dark:text-blue-300';
+                        break;
+                    case 'success':
+                        iconClass = 'fas fa-check-circle'; bgClass = 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800'; textClass = 'text-green-700 dark:text-green-300';
+                        setTimeout(() => processingStatus.classList.add('hidden'), 3000);
+                        break;
+                    case 'error':
+                        iconClass = 'fas fa-exclamation-triangle'; bgClass = 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800'; textClass = 'text-red-700 dark:text-red-300';
+                        setTimeout(() => processingStatus.classList.add('hidden'), 5000);
+                        break;
+                }
+                processingStatus.innerHTML = `<div class="glass-effect rounded-xl p-4 border ${bgClass} animate-fade-in"><div class="flex items-center space-x-3 ${textClass}"><i class="${iconClass}"></i><p class="font-medium">${message}</p></div></div>`;
+            }
+
+            function handleUploadSuccess(result) {
+                showProcessingStatus('success', `Successfully processed ${result.document_count || selectedFiles.length} document(s)!`);
+                const isImage = !!result.common_id;
+                currentContext = {
+                    mode: isImage ? 'image' : 'pdf',
+                    collection_id: result.collection_name,
+                    common_id: result.common_id,
+                };
+                const historyId = isImage ? result.common_id : (result.collection_name || 'N/A');
+                const docNames = (result.filenames || selectedFiles.map(f => f.name)).join(', ');
+                const timestamp = new Date().toLocaleString();
+                const historyItem = { id: historyId, name: docNames, type: isImage ? 'image' : 'pdf', timestamp: timestamp, context: currentContext };
+                historyItems.unshift(historyItem);
+                updateHistoryDisplay();
+                welcomeMessage.classList.add('hidden');
+                chatInputSection.classList.remove('hidden');
+                chatMessages.innerHTML = '';
+                appendMessage('system', { response: `🎉 Ready to answer questions about: **${docNames}**\n\nYou can now ask me anything about your documents!` });
+                selectedFiles = [];
+                updateFileList();
+                if (window.innerWidth < 768) { closeSidebar(); }
+            }
+
+            function updateHistoryDisplay() {
+                if (historyItems.length === 0) {
+                    historyList.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400"><i class="fas fa-folder-open text-3xl mb-3 opacity-50"></i><p class="text-sm text-center">Your processed documents will appear here</p></div>`;
+                    return;
+                }
+                historyList.innerHTML = '';
+                historyItems.forEach((item, index) => {
+                    const historyElement = document.createElement('div');
+                    historyElement.className = 'card-interactive glass-effect p-4 rounded-xl border border-gray-200/30 dark:border-gray-700/30 animate-fade-in';
+                    const typeIcon = item.type === 'image' ? 'fas fa-images text-blue-500' : 'fas fa-file-pdf text-red-500';
+                    const displayName = item.name.length > 30 ? item.name.substring(0, 27) + '...' : item.name;
+                    historyElement.innerHTML = `<div class="flex items-start justify-between"><div class="flex items-start space-x-3 flex-1"><i class="${typeIcon}"></i><div class="flex-1 min-w-0"><p class="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">${displayName}</p><p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${item.timestamp}</p><div class="flex items-center mt-2 space-x-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${item.type === 'image' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}">${item.type === 'image' ? 'Image Set' : 'PDF Set'}</span></div></div></div><button onclick="removeHistoryItem(${index})" class="text-gray-400 hover:text-red-500 transition-colors p-1"><i class="fas fa-trash-alt text-xs"></i></button></div>`;
+                    historyElement.addEventListener('click', (e) => { if (e.target.closest('button')) return; loadHistoryItem(item); });
+                    historyList.appendChild(historyElement);
+                });
+            }
+            function loadHistoryItem(item) {
+                currentContext = item.context;
+                welcomeMessage.classList.add('hidden');
+                chatInputSection.classList.remove('hidden');
+                chatMessages.innerHTML = '';
+                appendMessage('system', { response: `📂 Loaded: **${item.name}**\n\nAsk me anything about this document!` });
+                if (window.innerWidth < 768) { closeSidebar(); }
+            }
+            window.removeHistoryItem = (index) => {
+                historyItems.splice(index, 1);
+                updateHistoryDisplay();
+            };
+            clearHistoryBtn?.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all history?')) {
+                    historyItems = [];
+                    updateHistoryDisplay();
+                    currentContext = {};
+                    welcomeMessage.classList.remove('hidden');
+                    chatInputSection.classList.add('hidden');
+                    chatMessages.innerHTML = '';
+                }
+            });
+
+            function appendMessage(sender, data) {
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`;
+                let contentHTML = '';
+                if (sender === 'user') {
+                    const sanitizedData = data.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    contentHTML = `<div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl rounded-br-md p-4 max-w-lg text-white shadow-lg"><div class="flex items-start space-x-2"><div class="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"><i class="fas fa-user text-xs"></i></div><div class="flex-1">${sanitizedData}</div></div></div>`;
+                } else if (sender === 'ai') {
+                    const rawHtml = marked.parse(data.response || 'No response found.');
+                    const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+                    const citations = (data.metadata || {}).citation_data || {};
+                    let citationHTML = '';
+
+                    if (citations.cited_tables && Object.keys(citations.cited_tables).length > 0) {
+                        citationHTML += '<div class="mt-4"><h4 class="font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center"><i class="fas fa-table mr-2 text-indigo-500"></i>Referenced Tables</h4>';
+                        Object.entries(citations.cited_tables).forEach(([id, tableHtml]) => {
+                            citationHTML += `<details class="glass-effect p-3 rounded-lg mb-2 border border-gray-200/30 dark:border-gray-700/30"><summary class="cursor-pointer text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center"><i class="fas fa-table mr-2"></i>${id}</summary><div class="prose-enhanced max-w-none text-sm mt-2">${DOMPurify.sanitize(tableHtml)}</div></details>`;
+                        });
+                        citationHTML += '</div>';
+                    }
+                    if (citations.cited_images && Object.keys(citations.cited_images).length > 0) {
+                        citationHTML += '<div class="mt-4"><h4 class="font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center"><i class="fas fa-images mr-2 text-indigo-500"></i>Referenced Images</h4>';
+                        Object.entries(citations.cited_images).forEach(([id, base64]) => {
+                            const imgSrc = base64.startsWith('data:image') ? base64 : `data:image/png;base64,${base64}`;
+                            citationHTML += `<details class="glass-effect p-3 rounded-lg mb-2 border border-gray-200/30 dark:border-gray-700/30"><summary class="cursor-pointer text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center"><i class="fas fa-image mr-2"></i>${id}</summary><img src="${imgSrc}" class="rounded-lg mt-2 max-w-xs shadow-md" alt="Referenced image"></details>`;
+                        });
+                        citationHTML += '</div>';
+                    }
+
+                    contentHTML = `<div class="glass-effect rounded-2xl rounded-bl-md p-5 max-w-4xl border border-gray-200/30 dark:border-gray-700/30 shadow-lg"><div class="flex items-start space-x-3"><div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-sm"><i class="fas fa-robot text-white text-sm"></i></div><div class="flex-1"><div class="prose-enhanced max-w-none">${sanitizedHtml}</div>${citationHTML}</div></div></div>`;
+                } else if (sender === 'system') {
+                    const rawHtml = marked.parse(data.response);
+                    const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+                    contentHTML = `<div class="w-full"><div class="glass-effect rounded-2xl p-4 mx-auto max-w-2xl text-center border border-gray-200/30 dark:border-gray-700/30"><div class="flex items-center justify-center space-x-2 text-indigo-600 dark:text-indigo-400"><i class="fas fa-info-circle"></i><div class="prose-enhanced text-sm">${sanitizedHtml}</div></div></div></div>`;
+                    messageWrapper.className = 'flex justify-center animate-fade-in';
+                } else { // error
+                    contentHTML = `<div class="glass-effect bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl p-4 max-w-lg shadow-lg"><div class="flex items-start space-x-2"><i class="fas fa-exclamation-triangle text-red-500 mt-1"></i><div>${data.response}</div></div></div>`;
+                }
+                messageWrapper.innerHTML = contentHTML;
+                chatMessages.appendChild(messageWrapper);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function showThinkingIndicator() {
+                const indicator = document.createElement('div');
+                indicator.id = 'thinking-indicator';
+                indicator.className = 'flex justify-start animate-fade-in';
+                indicator.innerHTML = `
+                    <div class="glass-effect rounded-2xl rounded-bl-md p-5 max-w-4xl border border-gray-200/30 dark:border-gray-700/30 shadow-lg">
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-sm loading-pulse">
+                                <i class="fas fa-robot text-white text-sm"></i>
+                            </div>
+                            <div class="flex-1 pt-1">
+                                <div class="thinking-stages max-w-none">
+                                    <div class="flex items-center space-x-1">
+                                        <span class="text-gray-600 dark:text-gray-400 text-sm font-medium">Analyzing document...</span>
+                                        <div class="dot-bounce">
+                                            <div class="dot1"></div><div class="dot2"></div><div class="dot3"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                chatMessages.appendChild(indicator);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                const thinkingStages = [
+                    "Analyzing document context...",
+                    "Retrieving relevant sections...",
+                    "Contacting generative AI...",
+                    "Composing final response..."
+                ];
+                let stageIndex = 0;
+                const stageElement = indicator.querySelector('.thinking-stages span');
+                const intervalId = setInterval(() => {
+                    stageIndex = (stageIndex + 1) % thinkingStages.length;
+                    stageElement.textContent = thinkingStages[stageIndex];
+                }, 2000);
+                
+                // Store interval ID to clear it later
+                indicator.dataset.intervalId = intervalId;
+
+                return indicator;
+            }
+
+            function removeThinkingIndicator() {
+                const indicator = document.getElementById('thinking-indicator');
+                if (indicator) {
+                    clearInterval(indicator.dataset.intervalId);
+                    indicator.remove();
+                }
+            }
+            
+            function autoResize() {
+                chatInput.style.height = 'auto';
+                chatInput.style.height = Math.min(chatInput.scrollHeight, 128) + 'px';
+            }
+            chatInput.addEventListener('input', autoResize);
+
+            window.addEventListener('resize', () => { if (window.innerWidth >= 768) { closeSidebar(); } });
+
+            updateCharCount();
+            updateHistoryDisplay();
+        });
+    </script>
+</body>
+</html>
+

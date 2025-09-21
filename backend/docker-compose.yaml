@@ -12,6 +12,7 @@ services:
       - redis
     volumes:
       - ./uploads:/app/uploads  
+      - ./main.py:/app/main.py
 
   redis:
     image: redis:7-alpine

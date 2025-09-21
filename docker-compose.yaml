@@ -1,51 +1,61 @@
-version: '3.4' # <-- ADD THIS LINE AT THE VERY TOP
+version: '3.8'
 
 services:
-  # FastAPI Backend
-  
+  # NGINX Reverse Proxy - The new public entrypoint for the application
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: legal-nginx
+    ports:
+      - "0.0.0.0:8087:80" # Expose Nginx on port 80
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - legal-net
+
+  # FastAPI Backend (No changes to the service itself, just removing the 'ports' mapping)
   backend:
     build: 
       context: ./backend
       dockerfile: Dockerfile
     container_name: legal-backend
-    ports:
-      - "3000:3000"
-
-    secrets: # <-- ADD THIS to the backend service
+    # ports are removed - traffic comes from Nginx
+    secrets:
       - gcp_key  
     env_file:
       - ./.env 
     environment:
-      # CORRECTED: Must be the path INSIDE the container
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp_key 
       - REDIS_URL=redis://redis:6379
     volumes:
-      # ADDED: This line mounts your key file into the container
       - ./backend/key.json:/app/key.json:ro
       - ./uploads:/app/uploads
+      - ./backend/main.py:/app/main.py
     restart: unless-stopped
     networks:
       - legal-net
     healthcheck:
-      # CORRECTED: The healthcheck must target the correct internal port (3000)
       test: ["CMD", "curl", "-f", "http://localhost:3000/docs"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  # Streamlit Frontend  
+  # Flask Frontend (Removing 'ports' mapping)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: legal-frontend
-    ports:
-      - "8501:8501"
+    # ports are removed - traffic comes from Nginx
+    volumes:
+     - ./frontend:/app
     env_file :
       - ./.env   
     environment:
-      
+      # This is still useful if the flask app needs to know the backend URL for other reasons.
       - BACKEND_URL=http://backend:3000
     depends_on:
       backend:
@@ -54,7 +64,7 @@ services:
     networks:
       - legal-net
 
-  # Redis Cache
+  # Redis Cache (No changes here)
   redis:
     image: redis:7-alpine
     container_name: legal-redis
@@ -65,7 +75,17 @@ services:
     restart: unless-stopped
     networks:
       - legal-net
-
+  cloudflared:
+      build:
+        context: ./cloudflared 
+        dockerfile: dockerfile
+      container_name: cloudflared_tunnel
+      restart: always
+      networks:
+        - legal-net
+      volumes:
+        - ./cloudflared:/home/nonroot/.cloudflared 
+   
 volumes:
   redis_data:
 
@@ -75,4 +95,5 @@ networks:
 
 secrets:
   gcp_key : 
-    file: ./backend/key.json    
+    file: ./backend/key.json
+

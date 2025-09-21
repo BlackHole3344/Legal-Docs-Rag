@@ -57,7 +57,7 @@ class GeminiClient:
         temperature: float = 0.1,
         max_output_tokens: int = 2048,
         thinking_budget: int = 0,
-        top_p: float = 0.8,
+        top_p: float = 0.9,
         top_k: int = 40,
         **kwargs
     ) -> str:

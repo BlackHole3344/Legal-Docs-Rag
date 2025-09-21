@@ -1,0 +1,11 @@
+tunnel: legal
+credentials-file: /home/nonroot/.cloudflared/tunnel.json
+
+ingress:
+  - hostname: legal-help.easyware.site
+    service: http://nginx:80
+  
+  # This is your required catch-all rule
+  - service: http_status:404
+
+

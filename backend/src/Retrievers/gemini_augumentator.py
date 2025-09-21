@@ -165,102 +165,112 @@ class GeminiQADataAugmentor:
 # Usage for Frontend Integration
 
     def _create_retrieval_system_prompt(self, user_query: str, augmented_data: Dict[str, Any]) -> str:
+        logger.info("Creating adaptive retrieval system prompt")
+        
+        try:
+            # Analyze user intent to determine response style
+            query_lower = user_query.lower()
+            short_indicators = ['short', 'brief', 'quick', 'summary', 'summarize', 'concise', 'simple answer']
+            specific_indicators = ['what is', 'when is', 'how much', 'who', 'where', 'deadline', 'penalty']
+            detailed_indicators = ['explain', 'analyze', 'breakdown', 'detailed', 'comprehensive', 'all about']
+            
+            is_short_request = any(indicator in query_lower for indicator in short_indicators)
+            is_specific_question = any(indicator in query_lower for indicator in specific_indicators)
+            is_detailed_request = any(indicator in query_lower for indicator in detailed_indicators)
+            
+            prompt = f"""You are an Expert Legal Document Analyst. Your goal is to provide accurate, relevant answers based ONLY on the provided legal document content.
+
+    ## RESPONSE ADAPTATION RULES (CRITICAL - FOLLOW EXACTLY)
+
+    **USER QUERY ANALYSIS:**
+    - Query: "{user_query}"
+    - Intent: {"SHORT_ANSWER" if is_short_request else "SPECIFIC_QUESTION" if is_specific_question else "DETAILED_ANALYSIS" if is_detailed_request else "STANDARD"}
+
+    **RESPONSE STYLE REQUIREMENTS:**
+
+    1. **SHORT_ANSWER**: Provide 1-3 sentences maximum. Answer directly without sections or formatting.
     
-        logger.info("Creating retrieval system prompt")
-        try : 
-            prompt = f"""You are a Legal Document Demystification Assistant. Your mission is to make complex legal language accessible and understandable to everyone, regardless of their legal background or language proficiency.
+    2. **SPECIFIC_QUESTION**: Answer only the specific question asked in 1-2 paragraphs maximum.
 
-        USER QUESTION: {user_query}
+    3. **DETAILED_ANALYSIS**: Use the full comprehensive format below.
 
-        CORE PRINCIPLES:
-        - Transform complex legal jargon into clear, everyday language
-        - Respond in the user's language or requested language
-        - Explain rights, obligations, consequences, and practical implications
-        - Use simple, everyday words instead of legal jargon
-        - Provide practical implications and real-life context
-        - Clearly identify what the person CAN do, MUST do, and CANNOT do
-        - Highlight potential penalties, deadlines, or negative outcomes
-        - Define important legal terms in simple language
+    4. **STANDARD**: Use the structured format but keep sections concise (2-3 sentences each).
 
-        CITATION REQUIREMENTS:
-        When referencing any tables or images in your response, you MUST cite them using these formats:
-        - For tables: [TABLE:table_001], [TABLE:table_002], etc.
-        - For images: [IMAGE:img_001], [IMAGE:img_002], etc.
-        Only cite media that directly supports your answer or provides essential context.
+    ## CORE RULES
+    - Answer EXCLUSIVELY from provided sources
+    - Use simple, non-legal language
+    - Cite sources: [TABLE:table_id] and [IMAGE:image_id]
+    - If information isn't in sources, state "This information is not available in the provided documents"
 
-        CONTENT SOURCES:
-        """
-            
-            # Add text content
-            
-            logger.info(f"Adding content into prompt....(texts , tables , images)")
+    ---
+
+    **CONTENT SOURCES:**
+    """
+
+            # Add content sources
             if augmented_data.get('raw_texts'):
-                prompt += "\n=== DOCUMENT TEXT CONTENT ===\n"
+                prompt += "\n=== DOCUMENT TEXT ===\n"
                 for i, text_item in enumerate(augmented_data['raw_texts'], 1):
-                    prompt += f"\nSource {i}:\n{text_item}\n"
-                logger.info(f"Added {len(augmented_data['raw_texts'])} text sources to prompt")
-            
-            # Add table content with unique IDs
+                    prompt += f"Source {i}: {text_item}\n\n"
+
             if augmented_data.get('table_mappings'):
-                prompt += "\n=== LEGAL TABLES AND STRUCTURED DATA ===\n"
-                prompt += "IMPORTANT: These tables contain critical legal terms, rates, penalties, or procedures. Reference them using [TABLE:table_ID] format when citing.\n\n"
-                
-                for i, (table_id  , table )  in enumerate(augmented_data['table_mappings'].items(), 1):
-                    prompt += f"Table ID: {table_id}\n{table}\n\n"
-                logger.info(f"Added {len(augmented_data['table_mappings'].items())} tables to prompt")
-            
-            # Add image instructions with unique IDs
+                prompt += "\n=== TABLES ===\n"
+                for table_id, table in augmented_data['table_mappings'].items():
+                    prompt += f"[TABLE:{table_id}]\n{table}\n\n"
+
             if augmented_data.get('image_mappings'):
-                prompt += f"\n=== LEGAL DOCUMENT IMAGES ===\n"
-                prompt += f"Number of images provided: {len(augmented_data['image_mappings'].items())}\n"
-                prompt += "Image IDs: " + ", ".join(augmented_data['image_mappings'].keys())+ "\n"
-                prompt += "ANALYZE FOR: Signatures, seals, legal stamps, diagrams, flowcharts, legal forms, or visual elements affecting legal interpretation.\n"
-                prompt += "CITATION: Reference specific images using [IMAGE:img_ID] format when they support your answer.\n"
-                logger.info(f"Added instructions for {len(augmented_data['image_mappings'].items())} images")
-            
+                prompt += "\n=== IMAGES ===\n"
+                prompt += f"Available image IDs: {', '.join(augmented_data['image_mappings'].keys())}\n"
+                prompt += "Cite as [IMAGE:img_id] when relevant to your answer.\n\n"
+
+            # Conditional response formats
+            if is_short_request:
+                prompt += """
+    **RESPONSE FORMAT: SHORT ANSWER**
+    Provide a direct answer in 1-3 sentences. Include citations only if essential. No sections or formatting.
+    """
+            elif is_specific_question:
+                prompt += """
+    **RESPONSE FORMAT: SPECIFIC ANSWER**
+    Answer the specific question in 1-2 paragraphs maximum. Include relevant citations.
+    """
+            else:
+                prompt += """
+    **RESPONSE FORMAT: STRUCTURED ANALYSIS**
+
+    ## Direct Answer
+    [One clear sentence answering the main question]
+
+    ## Key Details
+    [Essential information in 2-3 sentences with citations]
+
+    ## Important Requirements
+    **Must Do:** [Obligations]
+    **Cannot Do:** [Restrictions]
+    **Deadlines:** [Time-sensitive items]
+
+    ## Citations Used
+    [Only if you cited tables/images - list what each provided]
+
+    **LENGTH GUIDANCE:** Keep each section to 2-3 sentences unless the query specifically requests detailed analysis.
+    """
+
             prompt += """
 
-        RESPONSE FORMAT:
+    **FINAL REMINDERS:**
+    - Prioritize the user's specific request over following a rigid format
+    - Be concise unless explicitly asked for detail
+    - Only cite sources that directly support your answer
+    - Translate legal jargon into everyday language
+    """
 
-        ## Quick Answer
-        [Direct answer to the user's question in simple terms]
-
-        ## Document Overview
-        **Document Type**: [What kind of legal document this is]
-        **Main Purpose**: [Why this document exists and what it accomplishes]
-
-        ## Key Parties and Responsibilities
-        **Your Role**: [User's role, rights, and responsibilities]
-        **Other Party**: [Counterparty's role and obligations]
-
-        ## Financial Implications
-        **Costs and Fees**: [Any payments, premiums, or deposits required]
-        **Penalties**: [Fines or charges for violations]
-        **Benefits**: [Money, refunds, or financial protections available]
-
-        ## Critical Requirements and Deadlines
-        **Mandatory Actions**: [Essential obligations and requirements]
-        **Prohibited Actions**: [What cannot be done]
-        **Important Deadlines**: [Time-sensitive requirements]
-
-        ## Rights and Protections
-        [Legal rights, protections, and entitlements]
-
-        ## Limitations and Exclusions
-        [What is not covered, exceptions, and restrictions]
-
-        ## Referenced Content Summary
-        **Tables Used**: [List table IDs and brief explanation of why each was referenced]
-        **Images Used**: [List image IDs and brief explanation of their relevance]
-
-        IMPORTANT: Only include the "Referenced Content Summary" section if you actually cited tables or images in your response.
-        """
-            
-            logger.debug(f"System prompt created ({len(prompt)} characters)")
+            logger.debug(f"Adaptive system prompt created ({len(prompt)} characters)")
             return prompt
-        except Exception as e : 
-            logger.error(f"Error Somewhere creating System Prompt : {e}")
-            raise e 
+
+        except Exception as e:
+            logger.error(f"Error creating adaptive system prompt: {e}")
+            raise e
+
     def _create_image_analysis_prompt(self, num_images: int) -> str:
         """Create image analysis prompt with citation instructions"""
         logger.debug(f"Creating image analysis prompt for {num_images} images")
@@ -333,8 +343,9 @@ class GeminiQADataAugmentor:
             logger.info("Step 5: Generating response with Gemini")
             response = await self._gemini_client.generate_response(
                 contents=contents,
-                max_output_tokens=4096 , 
-                temperature=0.1 
+                max_output_tokens=2048, 
+                temperature=0.1 , 
+                thinking_budget=1
             )
             
             if response :
